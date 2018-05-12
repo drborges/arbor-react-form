@@ -1,6 +1,25 @@
 import React from "react"
 
-const bindProps = (node, validate, props) => {
+const validateInput = (input, node, validators) => {
+  input.setCustomValidity("")
+
+  const html5valid = input.checkValidity()
+  if (!html5valid) {
+    node.valid = input.checkValidity()
+    node.message = input.validationMessage
+    return
+  }
+
+  const validations = validators.map(rule => rule(input.value))
+  Promise.all(validations)
+    .catch(error => input.setCustomValidity(error))
+    .then(() => {
+      node.valid = input.checkValidity()
+      node.message = input.validationMessage
+    })
+}
+
+const bindProps = (node, validate, validators, props) => {
   const mapping = {
     radio: {
       checked: node.value === props.value,
@@ -31,8 +50,7 @@ const bindProps = (node, validate, props) => {
     const handler = inputProps[validate]
     inputProps[validate] = (e) => {
       handler && handler(e)
-      node.valid = e.target.checkValidity()
-      node.message = e.target.validationMessage
+      validateInput(e.target, node, validators)
     }
   }
 
@@ -40,8 +58,14 @@ const bindProps = (node, validate, props) => {
 }
 
 class Control extends React.PureComponent {
-  componentDidMount() {
+  /**
+   * Augments target's API with form related functionality if needed
+   */
+  componentWillMount() {
     const target = this.props.target
+
+    // Provide a way to reset the corresponding form field arbor node to a prestine
+    // state, e.g. empty field with no trace of previous validation attempts.
     target.$reset = target.$reset || (() => {
       target.$mutate(target => {
         target.value = ""
@@ -52,7 +76,7 @@ class Control extends React.PureComponent {
   }
 
   render() {
-    const { children, target, validate } = this.props
+    const { children, target, validate, validators } = this.props
     const controls = ["input", "select", "textarea"]
 
     return React.Children.map(children, child => {
@@ -60,7 +84,7 @@ class Control extends React.PureComponent {
         return child
       }
 
-      return React.cloneElement(child, bindProps(target, validate, child.props))
+      return React.cloneElement(child, bindProps(target, validate, validators, child.props))
     })
   }
 }
