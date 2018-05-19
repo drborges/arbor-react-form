@@ -19,7 +19,8 @@ const validateInput = (input, node, validators) => {
     })
 }
 
-const bindProps = (node, validate, validators, props) => {
+const bindProps = (node, validate, validators, element) => {
+  const { props, type } = element
   const mapping = {
     radio: {
       checked: node.value === props.value,
@@ -35,6 +36,19 @@ const bindProps = (node, validate, validators, props) => {
         props.onChange && props.onChange(e)
       }
     },
+    select: {
+      value: node.value,
+      onChange: e => {
+        const value = props.multiple ?
+          Array.from(e.target.selectedOptions).map(o => o.value) :
+          e.target.value
+
+        console.log(">>>> select value", value)
+
+        node.value = value
+        props.onChange && props.onChange(e)
+      }
+    },
     default: {
       value: node.value,
       onChange: e => {
@@ -44,7 +58,9 @@ const bindProps = (node, validate, validators, props) => {
     }
   }
 
-  const inputProps = mapping[props.type] || mapping.default
+  const inputProps = mapping[type] || mapping.default
+
+  console.log(">>>> type", )
 
   if (validate) {
     const handler = inputProps[validate]
@@ -76,7 +92,7 @@ class Control extends React.PureComponent {
   }
 
   render() {
-    const { children, target, validate, validators } = this.props
+    const { children, target, validate, validators = [] } = this.props
     const controls = ["input", "select", "textarea"]
 
     return React.Children.map(children, child => {
@@ -84,7 +100,7 @@ class Control extends React.PureComponent {
         return child
       }
 
-      return React.cloneElement(child, bindProps(target, validate, validators, child.props))
+      return React.cloneElement(child, bindProps(target, validate, validators, child))
     })
   }
 }
